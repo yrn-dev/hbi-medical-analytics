@@ -6,30 +6,43 @@
 import express from 'express';
 import path from 'path';
 import { createServer as createViteServer } from 'vite';
-import { GoogleGenAI } from '@google/genai';
 import dotenv from 'dotenv';
 
 // Load environment variables
 dotenv.config();
+async function generateAIResponse(prompt: string): Promise<string> {
+  const apiKey = process.env.ALEM_API_KEY;
 
-let aiClient: GoogleGenAI | null = null;
-
-function getGeminiClient(): GoogleGenAI {
-  if (!aiClient) {
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey || apiKey === 'MY_GEMINI_API_KEY') {
-      throw new Error('GEMINI_API_KEY environment variable is missing or placeholder in secrets. Please set it via Secrets panel.');
-    }
-    aiClient = new GoogleGenAI({
-      apiKey: apiKey,
-      httpOptions: {
-        headers: {
-          'User-Agent': 'aistudio-build',
-        },
-      },
-    });
+  if (!apiKey) {
+    throw new Error('ALEM_API_KEY is missing.');
   }
-  return aiClient;
+
+  const response = await fetch('https://llm.alem.ai/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model: 'gpt-oss',
+      messages: [
+        {
+          role: 'user',
+          content: prompt,
+        },
+      ],
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Alem AI error: ${response.status} ${errorText}`);
+  }
+
+  const data = await response.json();
+
+  return data?.choices?.[0]?.message?.content ||
+    'Талдау нәтижесін генерациялау мүмкін болмады.';
 }
 
 async function startServer() {
@@ -75,16 +88,7 @@ ${requestDetails || "Жалпы медициналық комплаенс, ау�
 5. **Инвестициялық және Мемлекеттік ROI Жақсарту Ұсыныстары** (Outsource vs Buy бойынша қай жабдықтарды ішкі сатып алуға жіберу керек және оның қаржылық тиімділігі)
 6. **Басшылыққа арналған Қорытынды Бұйрықтар жоспары** (3-4 нақты қадам).`;
 
-      const ai = getGeminiClient();
-      const response = await ai.models.generateContent({
-        model: 'gemini-3.5-flash',
-        contents: prompt,
-        config: {
-          temperature: 0.8,
-        },
-      });
-
-      const explanation = response.text || "Талдау нәтижесін генерациялау мүмкін болмады.";
+   const explanation = await generateAIResponse(prompt);
       res.json({ success: true, explanation });
     } catch (error: any) {
       console.error("Gemini analysis error:", error);
