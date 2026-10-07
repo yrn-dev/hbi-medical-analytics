@@ -6,45 +6,35 @@
 import express from 'express';
 import path from 'path';
 import { createServer as createViteServer } from 'vite';
-import { GoogleGenAI } from '@google/genai';
 import dotenv from 'dotenv';
 
 // Load environment variables
 dotenv.config();
 
-let aiClient: GoogleGenAI | null = null;
+const AI_API_URL = process.env.AI_API_URL || 'https://llm.alem.ai/chat/completions';
+const AI_MODEL = process.env.AI_MODEL || 'gpt-oss';
 
-function getGeminiClient(): GoogleGenAI {
-  if (!aiClient) {
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey || apiKey === 'MY_GEMINI_API_KEY') {
-      throw new Error('GEMINI_API_KEY environment variable is missing or placeholder in secrets. Please set it via Secrets panel.');
-    }
-    aiClient = new GoogleGenAI({
-      apiKey: apiKey,
-      httpOptions: {
-        headers: {
-          'User-Agent': 'aistudio-build',
-        },
-      },
-    });
+function getApiKey(): string {
+  const apiKey = process.env.AI_API_KEY;
+  if (!apiKey || apiKey === 'MY_AI_API_KEY') {
+    throw new Error('AI_API_KEY environment variable is missing. Please set it in the .env file (see .env.example).');
   }
-  return aiClient;
+  return apiKey;
 }
 
 async function startServer() {
   const app = express();
-  const PORT = 3000;
+  const PORT = parseInt(process.env.PORT || '3000', 10);
 
   // Enforce JSON body parsing
   app.use(express.json({ limit: '10mb' }));
 
-  // API Route for Gemini Medical Compliance & Risk Analysis
-  app.post('/api/gemini/analyze', async (req, res) => {
+  // API Route for AI Medical Compliance & Risk Analysis
+  app.post('/api/ai/analyze', async (req, res) => {
     try {
       const { orgName, metrics, alerts, equipmentDowntime, roiPlanner, requestDetails } = req.body;
 
-      let prompt = `Сіз емханалар мен ауруханалардың басшылығына тәуекелдерді басқару және комплаенс-бақылау бойынша кәсіби кеңес беретін талдаушы AI экспертісіз.
+      const prompt = `Сіз емханалар мен ауруханалардың басшылығына тәуекелдерді басқару және комплаенс-бақылау бойынша кәсіби кеңес беретін талдаушы AI экспертісіз.
 Ұйым атауы: ${orgName || "Дерексіз емхана"}
 Ағымдағы көрсеткіштер мен басты KPI деректері:
 - Қосалқы орындау (аутсорсинг) шығыстары: ${metrics?.totalOutsourceSpend?.toLocaleString() || "0"} KZT
@@ -59,7 +49,7 @@ async function startServer() {
 ${alerts && alerts.length > 0 ? alerts.map((a: any, index: number) => `${index + 1}. [${a.severity.toUpperCase()}] ${a.title}: ${a.description} (Қатысушы: ${a.doctorName || "Көрсетілмеген"}, Күдікті Сома: ${a.flaggedAmount?.toLocaleString()} KZT)`).join('\n') : "Күдікті аномалиялар табылған жоқ."}
 
 Жабдықтардың тоқтауы (downtime):
-${equipmentDowntime && equipmentDowntime.length > 0 ? equipmentDowntime.map((e: any) => `- ${e.name} (Бөлім: ${e.department}, Тозғандық: ${e.depreciationPercent}%, Ақау саны: ${e.repairCount}, Downtime: ${e.downtimeDays} күн)`).join('\n') : "Деректер жоқ немесе тұрақты."}
+${equipmentDowntime && equipmentDowntime.length > 0 ? equipmentDowntime.map((e: any) => `- ${e.name} (Бөлім: ${e.department}, Тозу деңгейі: ${e.depreciationPercent}%, Ақау саны: ${e.repairCount}, Downtime: ${e.downtimeDays} күн)`).join('\n') : "Деректер жоқ немесе тұрақты."}
 
 ROI Ішкі сатып алу кандидаты (Outsource vs Buy):
 ${roiPlanner && roiPlanner.length > 0 ? roiPlanner.map((r: any) => `- ${r.equipmentName} (${r.category}): Қазіргі аутсорс айлық шығысы: ${r.monthlyOutsourceCost?.toLocaleString()} KZT, Сатып алу құны: ${r.internalPurchasePrice?.toLocaleString()} KZT, Ақталу мерзімі: ${r.paybackPeriodMonths} ай, Ұсыныс: ${r.recommendation}`).join('\n') : "Деректер жоқ."}
@@ -75,19 +65,38 @@ ${requestDetails || "Жалпы медициналық комплаенс, ау�
 5. **Инвестициялық және Мемлекеттік ROI Жақсарту Ұсыныстары** (Outsource vs Buy бойынша қай жабдықтарды ішкі сатып алуға жіберу керек және оның қаржылық тиімділігі)
 6. **Басшылыққа арналған Қорытынды Бұйрықтар жоспары** (3-4 нақты қадам).`;
 
-      const ai = getGeminiClient();
-      const response = await ai.models.generateContent({
-        model: 'gemini-3.5-flash',
-        contents: prompt,
-        config: {
-          temperature: 0.8,
+      const response = await fetch(AI_API_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${getApiKey()}`,
         },
+        body: JSON.stringify({
+          model: AI_MODEL,
+          messages: [
+            {
+              role: 'system',
+              content: 'Сіз емханалар мен ауруханалардың басшылығына тәуекелдерді басқару және комплаенс-бақылау бойынша кәсіби кеңес беретін талдаушы AI экспертісіз. Жауапты ресми стильде, қазақ тілінде, markdown форматында беріңіз.',
+            },
+            {
+              role: 'user',
+              content: prompt,
+            },
+          ],
+          temperature: 0.8,
+        }),
       });
 
-      const explanation = response.text || "Талдау нәтижесін генерациялау мүмкін болмады.";
+      if (!response.ok) {
+        const detail = await response.text();
+        throw new Error(`AI API қатесі (${response.status}): ${detail.slice(0, 300)}`);
+      }
+
+      const data: any = await response.json();
+      const explanation = data?.choices?.[0]?.message?.content || "Талдау нәтижесін генерациялау мүмкін болмады.";
       res.json({ success: true, explanation });
     } catch (error: any) {
-      console.error("Gemini analysis error:", error);
+      console.error("AI analysis error:", error);
       res.status(500).json({ success: false, error: error?.message || "Ішкі серверлік қате" });
     }
   });

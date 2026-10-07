@@ -4,20 +4,7 @@
  */
 
 import React, { useState } from 'react';
-import {
-  Wrench,
-  Dribbble,
-  TrendingUp,
-  AlertTriangle,
-  Award,
-  DollarSign,
-  Calculator,
-  Compass,
-  ArrowRight,
-  TrendingDown,
-  Activity,
-  CheckCircle2
-} from 'lucide-react';
+import { Calculator } from 'lucide-react';
 import { EquipmentItem, RoiPlannerItem } from '../types';
 
 interface EquipmentDashboardProps {
@@ -42,6 +29,7 @@ export default function EquipmentDashboard({
     yearlySavings: number;
     recommendation: 'internalize' | 'lease' | 'keep_outsource';
   } | null>(null);
+  const [calcSaved, setCalcSaved] = useState(false);
 
   const formatKzt = (val: number) => {
     return `${val.toLocaleString()} ₸`;
@@ -55,8 +43,12 @@ export default function EquipmentDashboard({
         return 'bg-amber-50 text-amber-700 border-amber-100';
       case 'downtime':
         return 'bg-red-50 text-red-700 border-red-100 font-semibold animate-pulse';
+      case 'repair_needed':
+        return 'bg-orange-50 text-orange-700 border-orange-100 font-semibold';
+      case 'broken':
+        return 'bg-red-50 text-red-700 border-red-100 font-semibold animate-pulse';
       case 'decommissioned':
-        return 'bg-slate-50 text-slate-500 border-slate-150';
+        return 'bg-slate-50 text-slate-500 border-slate-100';
     }
   };
 
@@ -65,6 +57,8 @@ export default function EquipmentDashboard({
       case 'usable': return 'Жұмыс істеп тұр';
       case 'warning': return 'Техникалық бақылауда';
       case 'downtime': return 'Downtime (Күтілуде)';
+      case 'repair_needed': return 'Жөндеу қажет';
+      case 'broken': return 'Жұмыс істемейді (Ақаулы)';
       case 'decommissioned': return 'Есептен шығарылған';
     }
   };
@@ -79,6 +73,7 @@ export default function EquipmentDashboard({
         yearlySavings: 0,
         recommendation: 'keep_outsource'
       });
+      setCalcSaved(false);
       return;
     }
 
@@ -97,6 +92,24 @@ export default function EquipmentDashboard({
       yearlySavings,
       recommendation
     });
+    setCalcSaved(false);
+  };
+
+  const handleSaveRoiCandidate = () => {
+    if (!onAddRoiCandidate || !calcResult || calcSaved) return;
+    onAddRoiCandidate({
+      id: `roi-custom-${Date.now()}`,
+      equipmentName: calcName.trim() || 'Аталмаған құрылғы',
+      category: 'Қолмен есептелді',
+      monthlyOutsourceCost: calcOutsourcePrice,
+      internalPurchasePrice: calcPurchasePrice,
+      monthlyInternalRunningCost: calcRunCost,
+      projectedMonthlyVolume: 0,
+      paybackPeriodMonths: calcResult.payback === 999 ? 0 : calcResult.payback,
+      avoidedSpendYearly: calcResult.yearlySavings,
+      recommendation: calcResult.recommendation
+    });
+    setCalcSaved(true);
   };
 
   return (
@@ -117,7 +130,7 @@ export default function EquipmentDashboard({
           <div className="p-6 flex-1 overflow-y-auto custom-scrollbar">
             <div className="space-y-4">
               {equipment.map((eq) => {
-                const isCritDowntime = eq.downtimeDays > 30 && eq.status === 'downtime';
+                const isCritDowntime = eq.downtimeDays > 30 && (eq.status === 'downtime' || eq.status === 'broken');
                 return (
                   <div key={eq.id} className="p-4 rounded-xl border border-slate-100 hover:border-slate-200 transition-all bg-white flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <div className="space-y-1">
@@ -247,6 +260,21 @@ export default function EquipmentDashboard({
                     {calcResult.recommendation === 'keep_outsource' && 'Бұл құрылғыны өзімізге қымбат КТ/МРТ сатып алып сақтағанша, сыртқы ТОО соисполнитель арқылы орындатқан әлдеқайда арзан.'}
                   </p>
                 </div>
+
+                {onAddRoiCandidate && (
+                  <button
+                    type="button"
+                    onClick={handleSaveRoiCandidate}
+                    disabled={calcSaved}
+                    className={`w-full py-2 rounded-xl text-xs font-semibold border transition-colors cursor-pointer ${
+                      calcSaved
+                        ? 'border-emerald-200 bg-emerald-50 text-emerald-700 cursor-default'
+                        : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                    }`}
+                  >
+                    {calcSaved ? 'ROI жоспарына қосылды' : 'ROI жоспарына қосу'}
+                  </button>
+                )}
               </div>
             )}
           </div>

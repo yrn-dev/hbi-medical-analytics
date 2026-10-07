@@ -6,15 +6,10 @@
 import React, { useState } from 'react';
 import {
   TrendingUp,
-  TrendingDown,
   Activity,
   AlertTriangle,
   Building2,
-  DollarSign,
   PieChart,
-  HelpCircle,
-  ExternalLink,
-  ChevronRight,
   ShieldCheck
 } from 'lucide-react';
 import { SubcontractorAnalytics, DashboardSummary } from '../types';
@@ -22,11 +17,13 @@ import { SubcontractorAnalytics, DashboardSummary } from '../types';
 interface OutsourcingDashboardProps {
   summary: DashboardSummary;
   subcontractors: SubcontractorAnalytics[];
+  hhiLimit: number;
 }
 
 export default function OutsourcingDashboard({
   summary,
-  subcontractors
+  subcontractors,
+  hhiLimit
 }: OutsourcingDashboardProps) {
   const [selectedSub, setSelectedSub] = useState<SubcontractorAnalytics | null>(null);
 
@@ -39,8 +36,8 @@ export default function OutsourcingDashboard({
 
   // HHI index styling (Herfindahl-Hirschman Index)
   const getHhiSeverity = (hhi: number) => {
-    if (hhi < 1500) return { label: 'Төмен (Бәсекелі Орта)', color: 'text-emerald-600 bg-emerald-50 border-emerald-100', barColor: 'bg-emerald-500' };
-    if (hhi < 2500) return { label: 'Орташа бағыныс', color: 'text-amber-600 bg-amber-50 border-amber-100', barColor: 'bg-amber-500' };
+    if (hhi < hhiLimit * 0.6) return { label: 'Төмен (Бәсекелі Орта)', color: 'text-emerald-600 bg-emerald-50 border-emerald-100', barColor: 'bg-emerald-500' };
+    if (hhi < hhiLimit) return { label: 'Орташа деңгей', color: 'text-amber-600 bg-amber-50 border-amber-100', barColor: 'bg-amber-500' };
     return { label: 'Жоғары Концентрация (Монополиялық Тәуекел)', color: 'text-rose-600 bg-rose-50 border-rose-100', barColor: 'bg-rose-500' };
   };
 
@@ -48,6 +45,9 @@ export default function OutsourcingDashboard({
 
   // Outsource total budget
   const totalOutsource = subcontractors.reduce((sum, s) => sum + s.totalPaid, 0);
+
+  // CR3: үш ең ірі контрагенттің үлесі (төлем сомасы бойынша сұрыпталады)
+  const cr3Index = (([...subcontractors].sort((a, b) => b.totalPaid - a.totalPaid).slice(0, 3).reduce((sum, s) => sum + s.totalPaid, 0) / (totalOutsource || 1)) * 100).toFixed(1);
 
   return (
     <div className="space-y-6" id="outsourcing-dashboard-root">
@@ -130,25 +130,31 @@ export default function OutsourcingDashboard({
               {formatKzt(subcontractors.reduce((sum, s) => sum + s.actVsRegistryMismatch, 0))}
             </span>
             <p className="text-[10px] text-rose-400 mt-1">
-              Приписка / Кассалық аноомалия тәуекелі
+              Акт-реестр аномалиясы тәуекелі
             </p>
           </div>
         </div>
       </div>
 
       {/* CORE VISUAL CHARTS AND DETAILED ANALYSIS */}
+      {subcontractors.length === 0 ? (
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-12 text-center text-slate-400" id="outsource-empty-state">
+          <PieChart className="w-10 h-10 mx-auto stroke-1 mb-3" />
+          <p className="text-sm">Осы ұйым бойынша соисполнитель (ТОО) деректері әзірге тіркелмеген.</p>
+        </div>
+      ) : (
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6" id="outsource-core-visual">
         
         {/* CONTRACTORS REVENUE CONCENTRATION (LEFT/MID) */}
         <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col" id="contractors-list-card">
           <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
             <div>
-              <h3 className="font-semibold text-slate-900 text-sm">Қосалқы орындаушы ТОО (Соисполнители) рейтінгісі</h3>
+              <h3 className="font-semibold text-slate-900 text-sm">Қосалқы орындаушы ТОО (Соисполнители) рейтингі</h3>
               <p className="text-[11px] text-slate-500 mt-0.5">Келісімшарт сомасының шоғырлануы мен келіспеушілік аудиттері бойынша тізім</p>
             </div>
             <div className="text-xs font-semibold text-slate-500 bg-white border px-3 py-1 rounded-lg shadow-2xs">
               CR3 Индексі: <b className="text-rose-600 font-mono">
-                {((subcontractors.slice(0, 3).reduce((sum, s) => sum + s.totalPaid, 0) / (totalOutsource || 1)) * 100).toFixed(1)}%
+                {cr3Index}%
               </b> (Шек: <span className="font-mono">50%</span>)
             </div>
           </div>
@@ -187,7 +193,7 @@ export default function OutsourcingDashboard({
                           {sub.category === 'Laboratory' && 'Лаборатория'}
                           {sub.category === 'Imaging' && 'КТ/МРТ/Рентген'}
                           {sub.category === 'Clinical' && 'Клиникалық емдеу'}
-                          {sub.category === 'Consultation' && 'Шетелдік/Жеке консультация'}
+                          {sub.category === 'Consultation' && 'Кеңес беру / Басқа'}
                         </span>
                       </td>
                       <td className="py-4 text-right font-mono font-medium text-slate-800">
@@ -268,7 +274,7 @@ export default function OutsourcingDashboard({
                     Күдікті Әрекет Сигналдары Анықталды!
                   </div>
                   <p className="text-[11px] leading-normal mt-1 opacity-90">
-                    Акт бойынша бекітілген сома МИСТ-тегі тіркелім баламасынан көп. Бұл мердігер ТОО-ның қызметтерді қолдан көбейту (приписка) немесе жалған шот-фактура жасау тәуекеліне ұшырауы мүмкін екенін білдіреді. Ішкі тексеріс ұсынылады.
+                    Акт бойынша бекітілген сома МИС-тегі тіркелім баламасынан көп. Бұл мердігер ТОО-ның қызметтерді қолдан көбейту (приписка) немесе жалған шот-фактура жасау тәуекеліне ұшырауы мүмкін екенін білдіреді. Ішкі тексеріс ұсынылады.
                   </p>
                 </div>
               ) : (
@@ -289,13 +295,14 @@ export default function OutsourcingDashboard({
             <span className="text-[10px] text-slate-400 uppercase tracking-widest block font-medium">Кеңес беретін ядро бұйрығы:</span>
             <p className="text-[11px] font-semibold text-slate-700 mt-1">
               {activeSub.concentrationIndex > 30 
-                ? "Монополияны шектеу үшін нарыққа басқа зертханаларды (мысалы Олимп, Инвиво) шақырып, СR3 көрсеткішін 50% төмен ауыстыру ұсынылады."
+                ? "Монополияны шектеу үшін нарыққа басқа зертханаларды (мысалы Олимп, Инвиво) шақырып, CR3 көрсеткішін 50% төмен ауыстыру ұсынылады."
                 : "Ағымдағы мердігермен серіктестікті шектеусіз жалғастыра беруге болады."}
             </p>
           </div>
         </div>
 
       </div>
+      )}
     </div>
   );
 }

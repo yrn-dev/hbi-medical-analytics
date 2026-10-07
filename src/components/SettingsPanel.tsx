@@ -5,18 +5,13 @@
 
 import React, { useState } from 'react';
 import {
-  Settings,
-  Shield,
   Activity,
   AlertTriangle,
-  Users,
   Check,
-  Eye,
   Info,
-  Sliders,
-  Sparkles
+  Sliders
 } from 'lucide-react';
-import { AnalysisThresholds } from '../mockData';
+import { AnalysisThresholds, DEFAULT_THRESHOLDS } from '../mockData';
 
 interface SettingsPanelProps {
   thresholds: AnalysisThresholds;
@@ -160,7 +155,7 @@ export default function SettingsPanel({
         <div className="flex justify-end gap-3 border-t border-slate-100 pt-5">
           <button
             type="button"
-            onClick={() => setLocalThresholds({ ...thresholds })}
+            onClick={() => setLocalThresholds({ ...DEFAULT_THRESHOLDS })}
             className="px-5 py-2.5 rounded-xl border border-slate-200 font-semibold hover:bg-slate-50 text-slate-600 cursor-pointer text-xs"
           >
             Әдепкі (Ресми) деңгейге қайтару

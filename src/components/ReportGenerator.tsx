@@ -1,19 +1,14 @@
 /**
  * @license
- * SPDX-License-Identifier: Apache-2.5
+ * SPDX-License-Identifier: Apache-2.0
  */
 
 import React, { useState } from 'react';
 import {
   Sparkles,
-  Play,
-  RotateCcw,
   Printer,
   Copy,
-  ChevronDown,
-  Building2,
   AlertTriangle,
-  Lightbulb,
   FileText,
   Activity,
   Check
@@ -71,7 +66,7 @@ export default function ReportGenerator({
     "Қаржылық монополия (HHI) индексін есептеуде...",
     "Жолдамалар мен ТОО орындау аралығындағы алқаларды талдауда...",
     "Құрылғылардың ақталуы мен алдын-алатын шығыстарды болжауда...",
-    "Gemini 3.5 AI баяндамасын қортындылап жатыр..."
+    "AI баяндамасын қортындылап жатыр..."
   ];
 
   const handleGenerateReport = async () => {
@@ -88,10 +83,14 @@ export default function ReportGenerator({
       });
     }, 2800);
 
+    // Қорғаныс: AI сұранысы 120 секундтан аспауы керек
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 120000);
+
     try {
       const finalInstructions = userInstructions || getQuickPrompt(reportType);
 
-      const response = await fetch('/api/gemini/analyze', {
+      const response = await fetch('/api/ai/analyze', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -100,13 +99,13 @@ export default function ReportGenerator({
           orgName: selectedOrgName,
           metrics,
           alerts,
-          equipmentDowntime: equipment.filter(e => e.status === 'downtime' || e.status === 'warning'),
+          equipmentDowntime: equipment.filter(e => e.status !== 'usable' && e.status !== 'decommissioned'),
           roiPlanner,
           requestDetails: finalInstructions
-        })
+        }),
+        signal: controller.signal
       });
 
-      clearInterval(interval);
       const data = await response.json();
 
       if (data.success) {
@@ -115,11 +114,47 @@ export default function ReportGenerator({
         setErrorText(data.error || "Генерациялық қате пайда болды.");
       }
     } catch (err: any) {
-      clearInterval(interval);
-      setErrorText(err?.message || "Сервермен байланыс үзілді. Gemini API кілті мен интернетті тексеріңіз.");
+      if (err?.name === 'AbortError') {
+        setErrorText("Сұраныс уақыты аяқталды (120с). Байланысты немесе AI API-ні қайта тексеріп көріңіз.");
+      } else {
+        setErrorText(err?.message || "Сервермен байланыс үзілді. AI API кілті мен интернетті тексеріңіз.");
+      }
     } finally {
+      clearTimeout(timeout);
+      clearInterval(interval);
       setIsLoading(false);
     }
+  };
+
+  // Қарапайым markdown рендерлеу: тақырыптар, тізімдер, қалың жазу
+  const renderInline = (text: string) => {
+    const parts: React.ReactNode[] = [];
+    const boldRe = /\*\*(.+?)\*\*/g;
+    let last = 0;
+    let m: RegExpExecArray | null;
+    while ((m = boldRe.exec(text)) !== null) {
+      if (m.index > last) parts.push(text.slice(last, m.index));
+      parts.push(<strong key={`b-${m.index}`} className="font-semibold text-slate-900">{m[1]}</strong>);
+      last = m.index + m[0].length;
+    }
+    if (last < text.length) parts.push(text.slice(last));
+    return parts;
+  };
+
+  const renderMemoLine = (line: string, key: number) => {
+    if (line.startsWith('### ')) return <h5 key={key} className="font-bold text-slate-900 text-[13px] mt-2">{renderInline(line.slice(4))}</h5>;
+    if (line.startsWith('## ')) return <h4 key={key} className="font-bold text-slate-900 text-sm mt-3">{renderInline(line.slice(3))}</h4>;
+    if (line.startsWith('# ')) return <h3 key={key} className="font-bold text-slate-900 text-base mt-3">{renderInline(line.slice(2))}</h3>;
+    if (/^\s*[-*•]\s+/.test(line)) {
+      return (
+        <p key={key} className="pl-4 flex gap-1.5">
+          <span className="text-sky-600 shrink-0">•</span>
+          <span>{renderInline(line.replace(/^\s*[-*•]\s+/, ''))}</span>
+        </p>
+      );
+    }
+    if (line.trim() === '') return <div key={key} className="h-2" />;
+    return <p key={key}>{renderInline(line)}</p>;
   };
 
   const handleCopyReport = () => {
@@ -182,7 +217,7 @@ export default function ReportGenerator({
               }`}
             >
               <Sparkles className="w-4 h-4" />
-              {isLoading ? 'Зерделеу жүріп жатыр...' : 'Баяндаманы Жинау (Gemini AI)'}
+              {isLoading ? 'Зерделеу жүріп жатыр...' : 'Баяндаманы Жинау (AI)'}
             </button>
           </div>
         </div>
@@ -242,7 +277,7 @@ export default function ReportGenerator({
                   {errorText}
                   <br />
                   <span className="font-mono text-[10px] mt-2 block font-normal text-slate-400">
-                    Нақты Gemini API сараптамасы үшін оң жақ жоғарғы мәзерден `Settings &gt; Secrets` тақтасына өтіп, GEMINI_API_KEY мәнін толтырыңыз.
+                    Нақты AI сараптамасы үшін сервердегі `.env` файлінде `AI_API_KEY` мәнін толтырып, серверді қайта іске қосыңыз.
                   </span>
                 </p>
               </div>
@@ -255,10 +290,9 @@ export default function ReportGenerator({
                   <p className="text-[10px] text-slate-400 font-mono">Шешім датасы: {new Date().toLocaleDateString()} | Құпиялық: Ресми қолданысқа арналған</p>
                 </div>
 
-                {/* Display compiled message safely */}
-                <div className="whitespace-pre-wrap pl-1 font-sans text-slate-700 focus:outline-none">
-                  {/* Since raw markdown is returned, we can simply split or output elegantly */}
-                  {reportOutput}
+                {/* Display compiled memo with light markdown rendering */}
+                <div className="pl-1 font-sans text-slate-700 focus:outline-none space-y-1">
+                  {reportOutput.split('\n').map((line, i) => renderMemoLine(line, i))}
                 </div>
 
                 <div className="border-t border-slate-200 pt-4 mt-6 flex justify-between text-[10px] text-slate-500 font-mono">
@@ -271,7 +305,7 @@ export default function ReportGenerator({
                 <FileText className="w-12 h-12 stroke-1 text-slate-300 mb-2" />
                 <h4 className="font-semibold text-slate-800 text-sm">Баяндама Әзірленбеген</h4>
                 <p className="text-xs max-w-sm mt-1">
-                  Сол жақ баптаулар бойынша есеп түрін таңдап, <span className="font-bold text-sky-600 font-mono">"Баяндаманы Жинау"</span> батырмасын басыңыз. Gemini AI барлық импортталған реестрлерді қамтып, шешім жобасын автоматты қазақ тілінде құрастырады.
+                  Сол жақ баптаулар бойынша есеп түрін таңдап, <span className="font-bold text-sky-600 font-mono">"Баяндаманы Жинау"</span> батырмасын басыңыз. AI модельі барлық импортталған реестрлерді қамтып, шешім жобасын автоматты қазақ тілінде құрастырады.
                 </p>
               </div>
             )}

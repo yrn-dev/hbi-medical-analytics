@@ -8,29 +8,26 @@ import {
   ShieldAlert,
   AlertOctagon,
   CheckCircle2,
-  Clock,
   User,
   Users,
   Search,
   Check,
   X,
-  Filter,
-  DollarSign,
-  Heart,
-  Calendar,
-  AlertTriangle,
-  ChevronRight
+  DollarSign
 } from 'lucide-react';
 import { FraudCase } from '../types';
+import { AnalysisThresholds } from '../mockData';
 
 interface FraudDashboardProps {
   cases: FraudCase[];
   onUpdateCaseStatus: (id: string, status: FraudCase['status'], notes?: string) => void;
+  thresholds: AnalysisThresholds;
 }
 
 export default function FraudDashboard({
   cases,
-  onUpdateCaseStatus
+  onUpdateCaseStatus,
+  thresholds
 }: FraudDashboardProps) {
   const [activeTab, setActiveTab] = useState<'all' | 'new' | 'investigating' | 'approved' | 'dismissed'>('all');
   const [selectedCase, setSelectedCase] = useState<FraudCase | null>(null);
@@ -149,7 +146,7 @@ export default function FraudDashboard({
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
               <div>
                 <h3 className="font-semibold text-slate-900 text-sm">Тәуекелдер мен Аномалияларды сараптау тіркелімі</h3>
-                <p className="text-[11px] text-slate-500 mt-0.5 font-sans">МИС және тарифтік реестр сынықтары негізінде есептелген фрод алгоримі</p>
+                <p className="text-[11px] text-slate-500 mt-0.5 font-sans">МИС және тарифтік реестр сынықтары негізінде есептелген фрод алгоритмі · Дубликат терезесі: {thresholds.duplicateTimeframeMinutes} мин</p>
               </div>
 
               {/* SEARCH INPUT */}
@@ -233,7 +230,7 @@ export default function FraudDashboard({
                       <div className="flex items-center gap-1.5 flex-wrap">
                         <span className="text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wider">{c.code}</span>
                         <span className={`text-[9px] px-2 py-0.5 rounded border uppercase ${getSeverityBadge(c.severity)}`}>
-                          {c.severity === 'critical' ? 'Сындық' : c.severity === 'high' ? 'Жоғары' : c.severity === 'medium' ? 'Орташа' : 'Төмен'}
+                          {c.severity === 'critical' ? 'Сыни' : c.severity === 'high' ? 'Жоғары' : c.severity === 'medium' ? 'Орташа' : 'Төмен'}
                         </span>
                         <span className={`text-[9px] px-1.5 py-0.2 rounded border font-mono ${getStatusBadge(c.status)}`}>
                           {getStatusTranslation(c.status)}
@@ -338,7 +335,7 @@ export default function FraudDashboard({
                 className="py-2.5 bg-red-600 text-white rounded-xl text-xs font-semibold hover:bg-red-700 cursor-pointer flex items-center justify-center gap-1.5"
               >
                 <Check className="w-3.5 h-3.5" />
-                Фрод Расталды (Айппұл салу)
+                Фрод Расталды (Айыппұл салу)
               </button>
             </div>
           </div>

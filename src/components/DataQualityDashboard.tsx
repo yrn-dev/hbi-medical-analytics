@@ -7,13 +7,6 @@ import React from 'react';
 import {
   CheckCircle2,
   AlertTriangle,
-  FileSpreadsheet,
-  Grid,
-  TrendingDown,
-  Sparkles,
-  Info,
-  ShieldAlert,
-  Search,
   BookOpen
 } from 'lucide-react';
 import { DataQualityReport } from '../types';
@@ -87,7 +80,7 @@ export default function DataQualityDashboard({ report }: DataQualityDashboardPro
         <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col h-[400px]">
           <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center shrink-0">
             <div>
-              <h3 className="font-semibold text-slate-900 text-sm">Жүйелік Бэк-одно анықтамалықтар (Master Dictionaries)</h3>
+              <h3 className="font-semibold text-slate-900 text-sm">Жүйелік анықтамалықтар (Master Dictionaries)</h3>
               <p className="text-[11px] text-slate-500 mt-0.5">МКБ-10 Халықаралық аурулар тізімі және Мемлекеттік қызметтер тізбесі</p>
             </div>
             <BookOpen className="w-4 h-4 text-slate-600" />
@@ -127,7 +120,7 @@ export default function DataQualityDashboard({ report }: DataQualityDashboardPro
           <div className="space-y-4">
             <span className="text-[10px] font-bold text-sky-600 uppercase tracking-widest block">Деректер сапасы аудиті</span>
             <h4 className="text-sm font-bold text-slate-900 leading-snug">
-              Автоматты санитарлау қорытындысы
+              Автоматты тазарту қорытындысы
             </h4>
 
             <div className="space-y-3 text-xs text-slate-600 leading-relaxed">
@@ -146,21 +139,21 @@ export default function DataQualityDashboard({ report }: DataQualityDashboardPro
               </div>
 
               {report.duplicateRate > 2 || report.invalidMkb10Count > 10 ? (
-                <div className="p-3.5 rounded-xl bg-orange-50 text-orange-850 border border-orange-100 space-y-1 text-[11px]">
+                <div className="p-3.5 rounded-xl bg-orange-50 text-orange-800 border border-orange-100 space-y-1 text-[11px]">
                   <span className="font-bold flex items-center gap-1">
                     <AlertTriangle className="w-4 h-4 text-orange-600" />
                     Күдікті дерек ауытқулары
                   </span>
                   <p className="leading-normal">
-                    Тіркелген жолдардың арасында МКБ-10 кодтарына сәйкес келмейтін немесе бос мәні бар ұйтқылар бар. Осының кесірінен ӘМСҚ аудиттерінде айыппұл салу дефектілері туындауы мүмкін. Келісімшарттарды field mapping арқылы қайта қараңыз.
+                    Тіркелген жолдардың арасында МКБ-10 кодтарына сәйкес келмейтін немесе бос мәні бар жолдар бар. Осының кесірінен ӘМСҚ аудиттерінде айыппұл салу дефектілері туындауы мүмкін. Келісімшарттарды field mapping арқылы қайта қараңыз.
                   </p>
                 </div>
               ) : (
-                <div className="p-3.5 rounded-xl bg-emerald-50 text-emerald-850 border border-emerald-100 flex items-start gap-2 text-[11px]">
+                <div className="p-3.5 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-100 flex items-start gap-2 text-[11px]">
                   <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
                   <div>
                     <span className="font-bold block">Сәтті Дерек Дәрежесі</span>
-                    <p className="leading-relaxed mt-0.5 opacity-95">Дерек деңгейі жоғары комплаенс деңгейіне ие. Санитарлау сәтті аяқталды.</p>
+                    <p className="leading-relaxed mt-0.5 opacity-95">Дерек деңгейі жоғары комплаенс деңгейіне ие. Тазарту сәтті аяқталды.</p>
                   </div>
                 </div>
               )}

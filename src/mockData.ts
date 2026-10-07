@@ -67,13 +67,13 @@ export const DOCUMENT_LABELS: Record<DocumentType, { label: string; desc: string
     isRequired: false
   },
   slots_schedule: {
-    label: "Кезек / Слот кезек кестесі",
+    label: "Кезек / Слот кестесі",
     desc: "МИС пациенттердің жазылу жиілігі, бос/уақытылы тіркелмеген слоттар және күту уақыты",
     sampleFile: "slots_queues_may.xlsx",
     isRequired: false
   },
   referrals_registry: {
-    label: "Жолдамылар реестрі",
+    label: "Жолдамалар реестрі",
     desc: "Басқа ұйымдарға немесе сыртқы клиникаларға берілген жолдамалар жинағы",
     sampleFile: "referrals_outward.csv",
     isRequired: false
@@ -478,7 +478,7 @@ export const MOCK_FRAUD_ALERTS: Record<string, FraudCase[]> = {
       code: "HOL-104",
       ruleId: "holiday_anomalies",
       title: "Мерекелік/Демалыс күнгі аномальді белсенділік",
-      description: "Ресми демалыс/мереке күндері (Нұрыз, Жаңа жыл) МИСТ-те жазылған жоспарлы қымбат қызметтер.",
+      description: "Ресми демалыс/мереке күндері (Наурыз, Жаңа жыл) МИС-те жазылған жоспарлы қымбат қызметтер.",
       severity: "medium",
       status: "new",
       detectedAt: "2026-06-05 08:30",
@@ -492,7 +492,7 @@ export const MOCK_FRAUD_ALERTS: Record<string, FraudCase[]> = {
       code: "UPC-105",
       ruleId: "upcoding_detection",
       title: "Пакеттік Upcoding (Диагнозды жасанды күрделендіру)",
-      description: "Жеңіл диагноздармен (мысалы, ЖРВИ) келіп, МИСТ-ке қымбат диагностикалық қызметтер тіркелуі немесе созылмалы ауыр асқыну пакетін құру.",
+      description: "Жеңіл диагноздармен (мысалы, ЖРВИ) келіп, МИС-ке қымбат диагностикалық қызметтер тіркелуі немесе созылмалы ауыр асқыну пакетін құру.",
       severity: "high",
       status: "new",
       detectedAt: "2026-06-05 10:20",
@@ -500,7 +500,7 @@ export const MOCK_FRAUD_ALERTS: Record<string, FraudCase[]> = {
       doctorName: "Дәрігер: Ысқақова Л. (Инфекционист)",
       department: "Бөлімше: Жұқпалы аурулар",
       flaggedAmount: 340000,
-      notes: "Диагнозы: J06 (Жеңіл тамақ өтуі). Көрсетілген қызметтер: Кеуде қуысының КТ-зерттеуі және қымбат ПЦР панелі."
+      notes: "Диагнозы: J06 (Жоғарғы тыныс алу жолдарының жеңіл инфекциясы). Көрсетілген қызметтер: Кеуде қуысының КТ-зерттеуі және қымбат ПЦР панелі."
     }
   ],
   "org-2": [
@@ -738,11 +738,11 @@ export const MOCK_ROI_PROJECTS: Record<string, RoiPlannerItem[]> = {
 
 export const MOCK_DASHBOARD_SUMMARIES: Record<string, DashboardSummary> = {
   "org-1": {
-    totalOutsourceSpend: 159100000, // Жалпы қосалқы орындау сомасы
+    totalOutsourceSpend: 158000000, // Жалпы қосалқы орындау сомасы
     privateSharePercent: 86.4, // Жекеменшік ТОО үлесі (%)
     hhiIndex: 2845, // Herfindahl concentration index (жасыл/сары < 2000, ауыр > 2500)
     duplicateRate: 1.84, // Деректерді қайталану пайызы
-    flaggedFraudTotal: 713000, // Тәуекелге ілінген сома (KZT)
+    flaggedFraudTotal: 717000, // Тәуекелге ілінген сома (KZT)
     staffCoveragePercent: 91.7, // Кадрлық қамту үлесі
     equipmentDowntimeTotal: 177, // Жалпы техникалық тоқтап тұру күндері (downtime-days)
     projectedAnnualSavings: 64200000 // ROI / Алдын алуға болатын шығыстар
@@ -777,7 +777,7 @@ export interface AnalysisThresholds {
   duplicateTimeframeMinutes: number; // Тексеріс уақыты (минут)
   retirementAgeMen: number;
   retirementAgeWomen: number;
-  criticalDowntimeDays: number;     // Сындық тұру күні жабдық ушін
+  criticalDowntimeDays: number;     // Сындық тұру күні жабдық үшін
 }
 
 export const DEFAULT_THRESHOLDS: AnalysisThresholds = {

@@ -5,28 +5,27 @@
 
 import React from 'react';
 import {
-  Users,
   UserCheck,
   UserX,
-  Clock,
-  ArrowRight,
-  TrendingUp,
   AlertTriangle,
-  GraduationCap,
-  Calendar,
-  Layers,
-  Sparkles,
-  Award
+  Layers
 } from 'lucide-react';
 import { StaffAnalytics } from '../types';
+import { AnalysisThresholds } from '../mockData';
 
 interface HrDashboardProps {
   hrData: StaffAnalytics;
+  thresholds: AnalysisThresholds;
 }
 
-export default function HrDashboard({ hrData }: HrDashboardProps) {
-  const vacancyPercent = ((hrData.vacanciesCount / hrData.totalPositions) * 100).toFixed(1);
-  const fillRatePercent = ((hrData.filledPositions / hrData.totalPositions) * 100).toFixed(1);
+export default function HrDashboard({ hrData, thresholds }: HrDashboardProps) {
+  const total = hrData.totalPositions || 1;
+  const vacancyPercent = ((hrData.vacanciesCount / total) * 100).toFixed(1);
+  const fillRatePercent = ((hrData.filledPositions / total) * 100).toFixed(1);
+  // Декретте жүргендер штатта бойлайды, бірақ бөлімшеден уақытша айырылған
+  const activeFilled = Math.max(0, hrData.filledPositions - hrData.maternityLeaveCount);
+  const activeFillPercent = ((activeFilled / total) * 100).toFixed(1);
+  const maternityPercent = ((hrData.maternityLeaveCount / total) * 100).toFixed(1);
 
   // Load level check
   const getLoadLevel = (load: number) => {
@@ -90,7 +89,7 @@ export default function HrDashboard({ hrData }: HrDashboardProps) {
           </div>
           <div>
             <span className="text-2xl font-bold font-mono text-amber-600 block">{hrData.retirementRiskCount} маман</span>
-            <p className="text-[10px] text-amber-500 mt-1">Шек: Ерлер &gt; 63 ж, Әйелдер &gt; 58 ж</p>
+            <p className="text-[10px] text-amber-500 mt-1">Шек: Ерлер &gt; {thresholds.retirementAgeMen} ж, Әйелдер &gt; {thresholds.retirementAgeWomen} ж</p>
           </div>
         </div>
       </div>
@@ -101,7 +100,7 @@ export default function HrDashboard({ hrData }: HrDashboardProps) {
         {/* CRITICAL SPECIALIST SHORTAGE LIST (LEFT/MID) */}
         <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden" id="hr-shortage-card">
           <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/50">
-            <h3 className="font-semibold text-slate-900 text-sm">Сындық мамандықтар жетіспеушілігі (Critical Specialists Slang)</h3>
+            <h3 className="font-semibold text-slate-900 text-sm">Сыни мамандықтар жетіспеушілігі (Critical Specialists Ranking)</h3>
             <p className="text-[11px] text-slate-500 mt-0.5">Келісімшарттық және МИС жазылулары бойынша ең жоғары күту уақыты бар дәрігерлер тізімі</p>
           </div>
 
@@ -129,13 +128,13 @@ export default function HrDashboard({ hrData }: HrDashboardProps) {
                 <span className="font-mono text-sky-600 text-sm">{fillRatePercent}%</span>
               </div>
               <div className="w-full bg-slate-200 h-3 rounded-full overflow-hidden flex">
-                <div className="bg-sky-500 h-full" style={{ width: `${fillRatePercent}%` }}></div>
-                <div className="bg-purple-300 h-full" style={{ width: `${(hrData.maternityLeaveCount / hrData.totalPositions * 100)}%` }} title="Декрет"></div>
+                <div className="bg-sky-500 h-full" style={{ width: `${activeFillPercent}%` }}></div>
+                <div className="bg-purple-300 h-full" style={{ width: `${maternityPercent}%` }} title="Декрет"></div>
                 <div className="bg-red-300 h-full" style={{ width: `${vacancyPercent}%` }} title="Бос ставкалар"></div>
               </div>
               <div className="flex flex-wrap gap-4 text-[10px] text-slate-500 font-medium">
-                <span className="flex items-center gap-1.5"><b className="w-2.5 h-2.5 rounded-sm bg-sky-500"></b> Тұрақты жұмыс бөлгісі: {fillRatePercent}%</span>
-                <span className="flex items-center gap-1.5"><b className="w-2.5 h-2.5 rounded-sm bg-purple-300"></b> Декретке кеткен ставка: {((hrData.maternityLeaveCount / hrData.totalPositions * 100)).toFixed(1)}%</span>
+                <span className="flex items-center gap-1.5"><b className="w-2.5 h-2.5 rounded-sm bg-sky-500"></b> Белсенді жұмыста: {activeFillPercent}%</span>
+                <span className="flex items-center gap-1.5"><b className="w-2.5 h-2.5 rounded-sm bg-purple-300"></b> Декретке кеткен ставка: {maternityPercent}%</span>
                 <span className="flex items-center gap-1.5"><b className="w-2.5 h-2.5 rounded-sm bg-red-300"></b> Бос лауазым (Вакант): {vacancyPercent}%</span>
               </div>
             </div>
@@ -167,11 +166,11 @@ export default function HrDashboard({ hrData }: HrDashboardProps) {
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Резервтегі кадрлық тәуекелдер:</span>
                 <div className="flex justify-between items-center py-1.5 border-b border-slate-50">
                   <span className="text-slate-500">Зейнеткер зейнет жасы:</span>
-                  <span className="font-semibold text-slate-800">Ерлер 63 / Әйелдер 58 жыл</span>
+                  <span className="font-semibold text-slate-800">Ерлер {thresholds.retirementAgeMen} / Әйелдер {thresholds.retirementAgeWomen} жыл</span>
                 </div>
                 <div className="flex justify-between items-center py-1.5 border-b border-slate-50">
                   <span className="text-slate-500">Зейнетке кетуші ставка салмағы:</span>
-                  <span className="font-mono font-semibold text-rose-600">- 8.5 ставка</span>
+                  <span className="font-mono font-semibold text-rose-600">- {hrData.retirementRiskCount} маман</span>
                 </div>
                 <div className="flex justify-between items-center py-1.5 border-b border-slate-50">
                   <span className="text-slate-500">Болашақ Жетіспеушілік:</span>
@@ -184,7 +183,7 @@ export default function HrDashboard({ hrData }: HrDashboardProps) {
           <div className="border-t border-slate-100 pt-4 mt-6 bg-slate-50/50 p-4 rounded-xl space-y-1">
             <span className="text-[10px] text-slate-400 uppercase tracking-widest block font-medium">HR Комплаенс кеңесі:</span>
             <p className="text-[11px] font-semibold text-slate-700 leading-normal">
-              Зейнетке жақындаған 8 қызметкерді ауыстыру мақсатында жас резиденттерді 'Резидентура грантымен' тарту бағдарламасын белсендіру қажет. Декреттік ставкаларға уақытша мерзімді келісімшартпен (конкурссыз) мамандар бекіту ұсынылады.
+              Зейнетке жақындаған {hrData.retirementRiskCount} қызметкерді ауыстыру мақсатында жас резиденттерді 'Резидентура грантымен' тарту бағдарламасын белсендіру қажет. Декреттік ставкаларға уақытша мерзімді келісімшартпен (конкурссыз) мамандар бекіту ұсынылады.
             </p>
           </div>
         </div>

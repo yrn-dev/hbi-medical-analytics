@@ -9,24 +9,17 @@ import {
   UploadCloud,
   FileSpreadsheet,
   Building2,
-  TrendingUp,
   AlertTriangle,
   Users,
   Wrench,
   Calculator,
   Settings,
-  HelpCircle,
-  FileText,
   ShieldAlert,
   ShieldCheck,
   CheckCircle2,
   PieChart,
   ArrowRight,
-  Info,
-  Sparkles,
-  ChevronDown,
-  ExternalLink,
-  BookOpen
+  Sparkles
 } from 'lucide-react';
 
 import {
@@ -75,6 +68,7 @@ export default function App() {
   const [imports, setImports] = useState<Record<string, DocumentImport[]>>({ ...INITIAL_IMPORTS });
   const [fraudAlerts, setFraudAlerts] = useState<Record<string, FraudCase[]>>({ ...MOCK_FRAUD_ALERTS });
   const [thresholds, setThresholds] = useState<AnalysisThresholds>({ ...DEFAULT_THRESHOLDS });
+  const [roiProjects, setRoiProjects] = useState<Record<string, RoiPlannerItem[]>>({ ...MOCK_ROI_PROJECTS });
 
   // Load resources based on active tenant/organisation
   const currentOrg = MOCK_ORGANIZATIONS.find(org => org.id === selectedOrgId) || MOCK_ORGANIZATIONS[0];
@@ -88,7 +82,7 @@ export default function App() {
     totalPositions: 0, filledPositions: 0, vacanciesCount: 0, maternityLeaveCount: 0, retirementRiskCount: 0, criticalSpecialistsNeeded: [], loadFactor: 0
   };
   const currentEquipment = MOCK_EQUIPMENT[selectedOrgId] || [];
-  const currentRoi = MOCK_ROI_PROJECTS[selectedOrgId] || [];
+  const currentRoi = roiProjects[selectedOrgId] || [];
   const currentSummary = MOCK_DASHBOARD_SUMMARIES[selectedOrgId] || {
     totalOutsourceSpend: 0, privateSharePercent: 0, hhiIndex: 0, duplicateRate: 0, flaggedFraudTotal: 0, staffCoveragePercent: 100, equipmentDowntimeTotal: 0, projectedAnnualSavings: 0
   };
@@ -119,8 +113,7 @@ export default function App() {
           return {
             ...c,
             status,
-            notes: notes || c.notes,
-            flaggedAmount: status === 'dismissed' ? 0 : c.flaggedAmount
+            notes: notes || c.notes
           };
         }
         return c;
@@ -136,6 +129,13 @@ export default function App() {
     setThresholds(newTh);
   };
 
+  const handleAddRoiCandidate = (item: RoiPlannerItem) => {
+    setRoiProjects(prev => ({
+      ...prev,
+      [selectedOrgId]: [...(prev[selectedOrgId] || []), item]
+    }));
+  };
+
   // Automated Real-Time Alert Engine logic based on updated thresholds!
   const alertEngineWarnings: string[] = [];
   if (currentSummary.privateSharePercent > thresholds.outsourceShareMax) {
@@ -144,13 +144,17 @@ export default function App() {
   if (currentSummary.hhiIndex > thresholds.hhiConcentrationLimit) {
     alertEngineWarnings.push(`Қауіп: Контрагент ТОО нарығындағы шоғырлану (HHI: ${currentSummary.hhiIndex}) заңсыз монополизация шегінен (${thresholds.hhiConcentrationLimit}) жоғары!`);
   }
-  if (currentStaff.loadFactor > 38) {
-    alertEngineWarnings.push(`Жүктеме: Операциялық слот деңгейі аномальді жоғары (${currentStaff.loadFactor} қабылдау/ауысым). Дәрігерлердің шаршау қауіпі бар.`);
+  if (currentStaff.loadFactor > thresholds.maxDailyServicesPerDoctor) {
+    alertEngineWarnings.push(`Жүктеме: Операциялық слот деңгейі аномальді жоғары (${currentStaff.loadFactor} қабылдау/ауысым, рұқсат етілген шек: ${thresholds.maxDailyServicesPerDoctor}). Дәрігерлердің шаршау қауіпі бар.`);
   }
   const currentOrgDowntime = currentEquipment.reduce((sum, e) => sum + e.downtimeDays, 0);
   if (currentOrgDowntime > thresholds.criticalDowntimeDays) {
     alertEngineWarnings.push(`Жабдық: Жалпы келісімді кідіріс күні (${currentOrgDowntime} күн) рұқсат етілген downtime шегінен (${thresholds.criticalDowntimeDays} күн) асты.`);
   }
+
+  const liveFraudTotal = currentFraudAlerts
+    .filter(c => c.status !== 'dismissed')
+    .reduce((sum, c) => sum + c.flaggedAmount, 0);
 
   const formatKzt = (val: number) => {
     return `${val.toLocaleString()} ₸`;
@@ -196,7 +200,7 @@ export default function App() {
           </div>
 
           {/* USER INFO PROFILE INDICATOR */}
-          <div className="hidden md:flex items-center gap-2 bg-slate-800/80 px-3.5 py-1.5 rounded-xl border border-slate-750/30">
+          <div className="hidden md:flex items-center gap-2 bg-slate-800/80 px-3.5 py-1.5 rounded-xl border border-slate-700/30">
             <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-ping"></div>
             <span className="text-[11px] font-mono tracking-wider font-semibold text-slate-200">
               {currentOrg.code} | ДӘРІГЕР/АУДИТОР
@@ -208,7 +212,7 @@ export default function App() {
 
       {/* COMPLIANCE ALERT ENGINE GAUGE BLOCK */}
       {alertEngineWarnings.length > 0 && (
-        <div className="bg-rose-50 border-b border-rose-200 shrink-0 text-xs px-6 py-2.5" id="alert-engine-banner flex items-center justify-between">
+        <div className="bg-rose-50 border-b border-rose-200 shrink-0 text-xs px-6 py-2.5" id="alert-engine-banner">
           <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-2">
             <div className="flex items-start gap-2.5">
               <AlertTriangle className="w-4 h-4 text-rose-500 shrink-0 mt-0.5 animate-bounce" />
@@ -239,7 +243,7 @@ export default function App() {
                 {currentOrg.type === 'city_polyclinic' ? 'Қалалық емхана' : currentOrg.type === 'district_hospital' ? 'Аудандық аурухана' : 'Арнайы Мамандандырылған Орталық'}
               </span>
             </div>
-            <p className="text-xs text-slate-500 font-medium">Өңірі: <span className="text-slate-700 font-semibold">{currentOrg.region}</span> | Бекітілген халық саны: <span className="text-slate-700 font-semibold">{currentOrg.patientsCount.toLocaleString()} тұрғын</span></p>
+            <p className="text-xs text-slate-500 font-medium">Өңірі: <span className="text-slate-700 font-semibold">{currentOrg.region}</span> | Есепте тұрған халық: <span className="text-slate-700 font-semibold">{currentOrg.patientsCount.toLocaleString()} тұрғын</span></p>
           </div>
 
           <div className="text-xs text-slate-500 pr-1 flex gap-4">
@@ -265,10 +269,10 @@ export default function App() {
               { id: "dq", label: "Деректер сапасы", icon: FileSpreadsheet },
               { id: "outsourcing", label: "Аутсорсинг қосалқы орындау", icon: PieChart },
               { id: "fraud", label: "Тәуекелдерді анықтау (Fraud)", icon: AlertTriangle },
-              { id: "hr", label: "Кадрылық талдау", icon: Users },
+              { id: "hr", label: "Кадрлық талдау", icon: Users },
               { id: "equipment", label: "Құрал-жабдықтар мен ROI", icon: Wrench },
               { id: "reports", label: "Есептер және AI сараптама", icon: Sparkles },
-              { id: "settings", label: "Критери баптаулары", icon: Settings }
+              { id: "settings", label: "Критерийлер баптаулары", icon: Settings }
             ].map((tab) => {
               const TabIcon = tab.icon;
               const isSelected = activeTab === tab.id;
@@ -317,7 +321,7 @@ export default function App() {
                     <span className="p-1.5 bg-rose-50 text-rose-600 rounded-lg"><AlertTriangle className="w-4 h-4" /></span>
                   </div>
                   <div>
-                    <span className="text-xl font-mono font-bold text-rose-600 block">{formatKzt(currentSummary.flaggedFraudTotal)}</span>
+                    <span className="text-xl font-mono font-bold text-rose-600 block">{formatKzt(liveFraudTotal)}</span>
                     <p className="text-[9px] text-rose-400 mt-0.5">Реестрлік дубликат үлесі: {currentSummary.duplicateRate}%</p>
                   </div>
                 </div>
@@ -335,7 +339,7 @@ export default function App() {
 
                 <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-xs flex flex-col justify-between h-32 hover:shadow-sm transition-shadow">
                   <div className="flex justify-between items-start">
-                    <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Өзін-өзі ақтау ROI</span>
+                    <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Өзін ақтау ROI</span>
                     <span className="p-1.5 bg-emerald-50 text-emerald-600 rounded-lg"><Calculator className="w-4 h-4" /></span>
                   </div>
                   <div>
@@ -353,9 +357,9 @@ export default function App() {
                 <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-100 shadow-sm p-6 flex flex-col justify-between h-[360px]" id="recommendations-overview">
                   <div className="space-y-4">
                     <div className="flex justify-between items-center border-b border-slate-100 pb-3">
-                      <span className="text-[10px] font-bold text-sky-650 uppercase tracking-widest block font-medium">Белсенді Қаржылық талдау бұйрықтары</span>
+                      <span className="text-[10px] font-bold text-sky-600 uppercase tracking-widest block font-medium">Белсенді Қаржылық талдау бұйрықтары</span>
                       <span className="bg-sky-50 text-sky-800 text-[10px] font-semibold px-2 py-0.5 rounded-full font-mono">
-                        ӘӘМСҚ Стандарттары
+                        ӘМСҚ Стандарттары
                       </span>
                     </div>
 
@@ -363,21 +367,21 @@ export default function App() {
                       
                       {currentSummary.totalOutsourceSpend > 0 ? (
                         <div className="flex items-start gap-2">
-                          <span className="bg-amber-100 text-amber-800 text-[9px] font-bold s-pad py-0.5 px-2 rounded mt-0.5">Концентрация</span>
+                          <span className="bg-amber-100 text-amber-800 text-[9px] font-bold py-0.5 px-2 rounded mt-0.5">Концентрация</span>
                           <p className="leading-normal">
                              ТОО серіктестеріне сыртқа аударылатын бюджетте бәсекелестік жетіспейді (HHI: {currentSummary.totalOutsourceSpend > 100000000 ? 'Жоғары монополия тәуекелі' : 'Қалыпты'}), бұл бағалардың жоғары болуына әкеледі.
                           </p>
                         </div>
                       ) : (
                         <div className="flex items-start gap-2">
-                          <span className="bg-emerald-100 text-emerald-800 text-[9px] font-bold s-pad py-0.5 px-2 rounded mt-0.5 block">Тұрақты</span>
+                          <span className="bg-emerald-100 text-emerald-800 text-[9px] font-bold py-0.5 px-2 rounded mt-0.5 block">Тұрақты</span>
                           <p className="leading-normal">Қосалқы орындау келісімшарттары балансталған, серіктестер арасында монополиялық қауіп төмен.</p>
                         </div>
                       )}
 
                       {currentFraudAlerts.length > 0 && (
                         <div className="flex items-start gap-2">
-                          <span className="bg-red-100 text-red-800 text-[9px] font-bold s-pad py-0.5 px-2 rounded mt-0.5">Клиникалық фрод</span>
+                          <span className="bg-red-100 text-red-800 text-[9px] font-bold py-0.5 px-2 rounded mt-0.5">Клиникалық фрод</span>
                           <p className="leading-normal">
                             Поликлиникада <b>{currentFraudAlerts.filter(c => c.status === 'new').length} Жаңа сигналдар (приписка)</b> анықталды. Тәулігіне 50-ден асқан қызмет көрсетуші дәрігерлер бойынша тексерісті ішкі аудит бөліміне тапсыру қажет.
                           </p>
@@ -386,7 +390,7 @@ export default function App() {
 
                       {currentStaff.retirementRiskCount > 0 && (
                         <div className="flex items-start gap-2">
-                          <span className="bg-purple-100 text-purple-800 text-[9px] font-bold s-pad py-0.5 px-2 rounded mt-0.5">Кадр саңылаулары</span>
+                          <span className="bg-purple-100 text-purple-800 text-[9px] font-bold py-0.5 px-2 rounded mt-0.5">Кадр саңылаулары</span>
                           <p className="leading-normal">
                              Алдағы ресми зейнет жасына шығатын немесе декретке баратын <b>{currentStaff.retirementRiskCount + currentStaff.maternityLeaveCount} маман</b> орнына жас резидент дәрігерлерге тарификациялық конкурстар дайындау керек.
                           </p>
@@ -409,7 +413,7 @@ export default function App() {
                 </div>
 
                 {/* ALERTS NOTIFIER AND THRESHOLDS COMPACTION (RIGHT) */}
-                <div className="bg-slate-900 text-white rounded-2xl border border-slate-850 shadow-md p-6 h-[360px] flex flex-col justify-between" id="active-alert-monitoring">
+                <div className="bg-slate-900 text-white rounded-2xl border border-slate-800 shadow-md p-6 h-[360px] flex flex-col justify-between" id="active-alert-monitoring">
                   <div className="space-y-4">
                     <div className="flex justify-between items-start border-b border-slate-800 pb-3">
                       <div>
@@ -430,7 +434,7 @@ export default function App() {
                       ) : (
                         <div className="space-y-2.5 max-h-[190px] overflow-y-auto pr-1 select-none custom-scrollbar text-[11px]">
                           {alertEngineWarnings.map((warn, i) => (
-                            <div key={i} className="flex gap-2 items-start text-sky-200 bg-slate-800/65 p-2.5 rounded-lg border border-slate-750">
+                            <div key={i} className="flex gap-2 items-start text-sky-200 bg-slate-800/65 p-2.5 rounded-lg border border-slate-700">
                               <span className="w-1.5 h-1.5 bg-amber-400 rounded-full shrink-0 mt-1.5"></span>
                               <p className="leading-snug opacity-90">{warn}</p>
                             </div>
@@ -453,6 +457,7 @@ export default function App() {
           {/* TAB 2: IMPORT COMPONENT */}
           {activeTab === "import" && (
             <DocumentUploadWizard
+              key={selectedOrgId}
               imports={currentImports}
               onAddImport={handleAddImport}
               onDeleteImport={handleDeleteImport}
@@ -462,30 +467,30 @@ export default function App() {
 
           {/* TAB 3: DATA QUALITY METRICS */}
           {activeTab === "dq" && (
-            <DataQualityDashboard report={currentDq} />
+            <DataQualityDashboard key={selectedOrgId} report={currentDq} />
           )}
 
           {/* TAB 4: OUTSOURCING SPEND AUDITING */}
           {activeTab === "outsourcing" && (
-            <OutsourcingDashboard summary={currentSummary} subcontractors={currentSubcontractors} />
+            <OutsourcingDashboard key={selectedOrgId} summary={currentSummary} subcontractors={currentSubcontractors} hhiLimit={thresholds.hhiConcentrationLimit} />
           )}
 
           {/* TAB 5: FRAUD AND AUDIT CHECKS */}
           {activeTab === "fraud" && (
-            <FraudDashboard cases={currentFraudAlerts} onUpdateCaseStatus={handleUpdateFraudCase} />
+            <FraudDashboard key={selectedOrgId} cases={currentFraudAlerts} onUpdateCaseStatus={handleUpdateFraudCase} thresholds={thresholds} />
           )}
 
           {/* TAB 6: HUMAN RESOURCE & TARIFICATION */}
           {activeTab === "hr" && (
-            <HrDashboard hrData={currentStaff} />
+            <HrDashboard key={selectedOrgId} hrData={currentStaff} thresholds={thresholds} />
           )}
 
           {/* TAB 7: MAINTENANCE AND EQUIPMENT ROI PLANNER */}
           {activeTab === "equipment" && (
-            <EquipmentDashboard equipment={currentEquipment} roiPlanner={currentRoi} />
+            <EquipmentDashboard key={selectedOrgId} equipment={currentEquipment} roiPlanner={currentRoi} onAddRoiCandidate={handleAddRoiCandidate} />
           )}
 
-          {/* TAB 8: REPORT COMPILER & GEMINI API SECURES */}
+          {/* TAB 8: REPORT COMPILER & AI ANALYSIS */}
           {activeTab === "reports" && (
             <ReportGenerator
               selectedOrgName={currentOrg.name}
@@ -506,7 +511,7 @@ export default function App() {
       </main>
 
       {/* COMPLIANT PLATFORM FOOTER */}
-      <footer className="bg-slate-900 text-slate-400 text-[10px] tracking-wider shrink-0 py-4 border-t border-slate-850" id="app-royal-footer">
+      <footer className="bg-slate-900 text-slate-400 text-[10px] tracking-wider shrink-0 py-4 border-t border-slate-800" id="app-royal-footer">
         <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-2">
           <span>&copy; 2026 HBI-Medical Analytics. Барлық құқықтар қорғалған.</span>
           <div className="flex gap-4">

@@ -9,8 +9,6 @@ import {
   CheckCircle2,
   AlertTriangle,
   FileSpreadsheet,
-  Settings,
-  Grid,
   FileText,
   Activity,
   History,
@@ -43,6 +41,7 @@ export default function DocumentUploadWizard({
   const [sourceHeaders, setSourceHeaders] = useState<string[]>([]);
   const [fieldMappings, setFieldMappings] = useState<Record<string, string>>({});
   const [rowCountToImport, setRowCountToImport] = useState<number>(100);
+  const [mappingPercent, setMappingPercent] = useState<number>(100);
 
   const documentTypes = Object.entries(DOCUMENT_LABELS) as [DocumentType, typeof DOCUMENT_LABELS[DocumentType]][];
 
@@ -155,24 +154,35 @@ export default function DocumentUploadWizard({
   const executeImport = () => {
     if (!selectedDocType || !uploadedFile) return;
 
+    // Мәлімдема: бағандардың қанша пайызы шынымен сәйкестендірілгенін есептейміз
+    const standardFields = getStandardFieldsForType(selectedDocType);
+    const missingFields = standardFields.filter(sf => !fieldMappings[sf.id] || fieldMappings[sf.id] === 'unmapped');
+    const missingRequired = standardFields.filter(sf => sf.required && (!fieldMappings[sf.id] || fieldMappings[sf.id] === 'unmapped'));
+    const percent = Math.round(((standardFields.length - missingFields.length) / (standardFields.length || 1)) * 100);
+    setMappingPercent(percent);
+
     // Convert mapped fields into a user-friendly format for display
     const mappedLabels: Record<string, string> = {};
-    const standardFields = getStandardFieldsForType(selectedDocType);
     standardFields.forEach(sf => {
       mappedLabels[sf.name] = fieldMappings[sf.id] || "Сәйкестендірілмеген";
     });
 
+    const status: DocumentImport['status'] = missingRequired.length > 0 ? 'error' : (missingFields.length > 0 ? 'warning' : 'success');
+    const errorDetails = missingFields.length > 0
+      ? `${missingRequired.length > 0 ? 'Қате' : 'Ескерту'}: ${missingFields.map(sf => sf.name).join(', ')} бағаны сәйкестендірілмеді.`
+      : undefined;
+
     const newImport: DocumentImport = {
-      id: `imp-${Date.now().toString().slice(-4)}`,
+      id: `imp-${Date.now()}`,
       type: selectedDocType,
       fileName: uploadedFile.name,
       fileSize: uploadedFile.size,
       importDate: new Date().toISOString().replace('T', ' ').slice(0, 16),
-      status: Math.random() > 0.15 ? 'success' : 'warning',
+      status,
       recordedBy: 'Ағымдағы пайдаланушы (Auditor)',
       rowCount: rowCountToImport,
       mappedFields: mappedLabels,
-      errorDetails: Math.random() > 0.8 ? "Ескерту: Тариф бағандарындағы бос мәндер орташа есептік тарифтерге автоматты түрде теңестірілді." : undefined
+      errorDetails
     };
 
     onAddImport(newImport);
@@ -185,7 +195,7 @@ export default function DocumentUploadWizard({
     setWizardStep('select');
   };
 
-  const currentOrgImports = imports.filter(imp => true); // In state we already pass matching items
+  const currentOrgImports = imports; // In state we already pass matching items
 
   return (
     <div className="space-y-6" id="import-wizard-container">
@@ -194,7 +204,7 @@ export default function DocumentUploadWizard({
         <div>
           <h2 className="text-xl font-semibold text-slate-900 tracking-tight font-sans">Импорт Орталығы (Data Import Center)</h2>
           <p className="text-slate-500 text-sm mt-1">
-            Кез келген аудандық немесе қалалық емхананың деректерін тікелей жүйеге импорттаңыз. Платформа 14 негізгі түрді автоматты өңдейді.
+            Кез келген аудандық немесе қалалық емхананың деректерін тікелей жүйеге импорттаңыз. Платформа 16 негізгі түрді қолдайды.
           </p>
         </div>
         <div className="flex items-center gap-2 bg-emerald-50 text-emerald-700 px-4 py-2 rounded-xl text-xs font-semibold uppercase tracking-wider">
@@ -342,7 +352,7 @@ export default function DocumentUploadWizard({
                   <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
                   <div>
                     <h5 className="text-xs font-semibold text-amber-900">
-                      Field Mapping шебері белсенді (Бағандар байланысы)
+                      Field Mapping шебері белсенді (Бағандар сәйкестендіруі)
                     </h5>
                     <p className="text-[11px] text-amber-700 mt-1 leading-relaxed">
                       Әр емхананың дерекқор құрылымы әртүрлі. Төменде жүйенің стандарты сұрайтын өрістер (Сол жақ) мен сіздің файлдағы бағандардың (Оң жақ) сәйкестігін баптаңыз. Бұл қате талдаулардың алдын алады.
@@ -424,7 +434,7 @@ export default function DocumentUploadWizard({
                 </div>
                 <div className="space-y-2">
                   <h4 className="text-lg font-bold text-slate-900">
-                    Деректер Сәтті Түрде Импортталды!
+                    Деректер сәтті импортталды!
                   </h4>
                   <p className="text-xs text-slate-500 max-w-md mx-auto">
                     Файл <span className="font-semibold text-slate-700">{uploadedFile.name}</span> талданды және тазартылды. Сандық өрістер стандартталып, бос мәндер қалпына келтірілді және қауіпті аналитикалық ядроға жіберілді.
@@ -434,7 +444,7 @@ export default function DocumentUploadWizard({
                 <div className="grid grid-cols-2 gap-4 bg-slate-50 p-4 rounded-xl border border-slate-100 w-full max-w-sm">
                   <div className="text-center">
                     <span className="text-[10px] text-slate-400 uppercase tracking-widest block">Бағандар Сәйкестігі</span>
-                    <span className="text-sm font-semibold font-mono text-slate-700">100% Табылды</span>
+                    <span className={`text-sm font-semibold font-mono ${mappingPercent === 100 ? 'text-emerald-600' : mappingPercent >= 60 ? 'text-amber-600' : 'text-rose-600'}`}>{mappingPercent}% Табылды</span>
                   </div>
                   <div className="text-center">
                     <span className="text-[10px] text-slate-400 uppercase tracking-widest block">Шығарылған Жолдар саны</span>
